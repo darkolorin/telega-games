@@ -26,8 +26,11 @@ const config = {
   },
   backgroundColor: '#1d1d1d',
   physics: {
-    default: 'arcade',
-    arcade: { gravity: { y: 0 }, debug: false }
+    default: 'matter',
+    matter: { 
+      gravity: { y: 0 },
+      debug: false
+    }
   },
   scene: {
     preload: preload,
@@ -62,6 +65,14 @@ let pointerDown = false;
 let dragVector;
 let dragStart;
 
+// === Category bits for Matter.js collision filtering ===
+const CATEGORY = {
+  PLAYER: 0x0001,
+  ENEMY: 0x0002,
+  BULLET: 0x0004,
+  GEM: 0x0008
+};
+
 // A tiny 1×1 PNG (white pixel) encoded as Base64. We'll tint it for different sprites.
 const WHITE_PIXEL_BASE64 =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==";
@@ -72,21 +83,31 @@ function preload() {
 }
 
 function create() {
+  // Matter world bounds
+  this.matter.world.setBounds(0, 0, BASE_WIDTH, BASE_HEIGHT);
+  
   // Create the player sprite and configure physics.
-  player = this.physics.add.image(BASE_WIDTH / 2, BASE_HEIGHT / 2, "pixel");
+  player = this.matter.add.image(BASE_WIDTH / 2, BASE_HEIGHT / 2, "pixel", null, {
+    label: 'player',
+    circleRadius: 16,
+    frictionAir: 0.2,
+    density: 0.001,
+    collisionFilter: {
+      category: CATEGORY.PLAYER,
+      mask: CATEGORY.ENEMY | CATEGORY.GEM
+    }
+  });
   player.setDisplaySize(32, 32).setTint(0x00ff00);
-  player.setCollideWorldBounds(true);
+  player.setFixedRotation();
 
   // Groups
-  bullets = this.physics.add.group({
-    defaultKey: "pixel",
-    maxSize: 200,
-  });
+  bullets = [];
+  const maxBullets = 200;
 
-  enemies = this.physics.add.group();
+  enemies = [];
 
   // Experience gems
-  gems = this.physics.add.group();
+  gems = [];
 
   // Input
   cursors = this.input.keyboard.createCursorKeys();
@@ -111,10 +132,37 @@ function create() {
     loop: true,
   });
 
-  // Collisions / Overlaps
-  this.physics.add.overlap(bullets, enemies, bulletHitEnemy, null, this);
-  this.physics.add.overlap(player, enemies, enemyHitPlayer, null, this);
-  this.physics.add.overlap(player, gems, collectGem, null, this);
+  // Matter.js collision handling
+  this.matter.world.on('collisionstart', function (event, bodyA, bodyB) {
+    const pairs = event.pairs;
+
+    for (let i = 0; i < pairs.length; i++) {
+      const bodyA = pairs[i].bodyA;
+      const bodyB = pairs[i].bodyB;
+      
+      // Player hits an enemy
+      if ((bodyA.gameObject === player && bodyB.label === 'enemy') ||
+          (bodyB.gameObject === player && bodyA.label === 'enemy')) {
+        const enemy = bodyA.label === 'enemy' ? bodyA.gameObject : bodyB.gameObject;
+        enemyHitPlayer(player, enemy);
+      }
+      
+      // Bullet hits an enemy
+      if ((bodyA.label === 'bullet' && bodyB.label === 'enemy') ||
+          (bodyB.label === 'bullet' && bodyA.label === 'enemy')) {
+        const bullet = bodyA.label === 'bullet' ? bodyA.gameObject : bodyB.gameObject;
+        const enemy = bodyA.label === 'enemy' ? bodyA.gameObject : bodyB.gameObject;
+        bulletHitEnemy(bullet, enemy);
+      }
+      
+      // Player hits a gem
+      if ((bodyA.gameObject === player && bodyB.label === 'gem') ||
+          (bodyB.gameObject === player && bodyA.label === 'gem')) {
+        const gem = bodyA.label === 'gem' ? bodyA.gameObject : bodyB.gameObject;
+        collectGem(player, gem);
+      }
+    }
+  });
 
   // Touch / pointer controls
   dragVector = new Phaser.Math.Vector2(0, 0);
@@ -135,14 +183,28 @@ function create() {
 function update(time, delta) {
   handlePlayerMovement.call(this);
   autoFire.call(this, time);
-  enemies.getChildren().forEach((enemy) => {
-    // Simple homing behaviour: move toward the player
-    this.physics.moveToObject(enemy, player, enemy.getData("speed"));
+  // Move enemies toward player
+  enemies.forEach((enemy) => {
+    if (enemy && enemy.active) {
+      const speed = enemy.getData("speed");
+      const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
+      const vx = Math.cos(angle) * speed * 0.01;
+      const vy = Math.sin(angle) * speed * 0.01;
+      enemy.setVelocity(vx, vy);
+    }
   });
 
-  bullets.getChildren().forEach((b) => {
-    if (b.active && b.update) b.update(time, delta);
-  });
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    if (b && b.active) {
+      b.lifespan -= delta;
+      if (b.lifespan <= 0) {
+        b.destroy();
+        bullets.splice(i, 1);
+      }
+    }
+  }
 }
 
 /* =========================
@@ -150,7 +212,7 @@ function update(time, delta) {
  * ========================= */
 
 function handlePlayerMovement() {
-  const speed = 250;
+  const speed = 0.1;  // Adjust for Matter.js forces
   let vx = 0;
   let vy = 0;
 
@@ -172,17 +234,19 @@ function handlePlayerMovement() {
     else if (cursors.down.isDown || S) vy = speed;
   }
 
-  player.setVelocity(vx, vy);
+  // Apply force to player
+  player.setVelocity(vx * 10, vy * 10);
 }
 
 function autoFire(time) {
   if (time < lastFired + fireRate) return; // milliseconds between shots
-  if (enemies.getLength() === 0) return;
+  if (enemies.length === 0) return;
 
   // Target the closest enemy.
   let closestEnemy = null;
   let minDist = Infinity;
-  enemies.getChildren().forEach((enemy) => {
+  enemies.forEach((enemy) => {
+    if (!enemy || !enemy.active) return;
     const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
     if (dist < minDist) {
       minDist = dist;
@@ -191,27 +255,31 @@ function autoFire(time) {
   });
   if (!closestEnemy) return;
 
-  const bullet = bullets.get(player.x, player.y);
-  if (!bullet) return; // None available (pool exhausted)
-
-  bullet.setActive(true);
-  bullet.setVisible(true);
-  bullet.setDisplaySize(8, 8).setTint(0xffff00);
-  bullet.body.reset(player.x, player.y);
-
-  this.physics.moveToObject(bullet, closestEnemy, bulletSpeed);
-  bullet.lifespan = 1000; // ms
-
-  bullet.damage = bulletDamage;
-
-  // We need a custom update for bullets to handle lifespan.
-  bullet.update = function (time, delta) {
-    this.lifespan -= delta;
-    if (this.lifespan <= 0) {
-      this.setActive(false);
-      this.setVisible(false);
+  // Create bullet with Matter.js
+  const angle = Phaser.Math.Angle.Between(
+    player.x, player.y, closestEnemy.x, closestEnemy.y
+  );
+  
+  const bullet = this.matter.add.image(player.x, player.y, "pixel", null, {
+    label: 'bullet',
+    circleRadius: 4,
+    frictionAir: 0,
+    density: 0.001,
+    collisionFilter: {
+      category: CATEGORY.BULLET,
+      mask: CATEGORY.ENEMY
     }
-  };
+  });
+  
+  bullet.setDisplaySize(8, 8).setTint(0xffff00);
+  bullet.setVelocity(
+    Math.cos(angle) * bulletSpeed * 0.05,
+    Math.sin(angle) * bulletSpeed * 0.05
+  );
+  bullet.setFixedRotation();
+  bullet.lifespan = 1000; // ms
+  bullet.damage = bulletDamage;
+  bullets.push(bullet);
 
   lastFired = time;
 }
@@ -239,45 +307,83 @@ function spawnEnemy() {
   }
 
   const isBoss = score > 0 && score % 20 === 0;
-  const enemy = enemies.create(x, y, "pixel");
+  const size = isBoss ? 48 : 24;
+  const radius = size / 2;
+  const health = isBoss ? 5 + Math.floor(score / 20) : 1;
+  const speed = isBoss ? 80 + score * 2 : 100 + score * 3;
+  
+  const enemy = this.matter.add.image(x, y, "pixel", null, {
+    label: 'enemy',
+    circleRadius: radius,
+    frictionAir: 0.1,
+    density: 0.002,
+    collisionFilter: {
+      category: CATEGORY.ENEMY,
+      mask: CATEGORY.PLAYER | CATEGORY.BULLET
+    }
+  });
 
   if (isBoss) {
     enemy.setDisplaySize(48, 48).setTint(0xff8800);
-    enemy.setCircle(24);
-    enemy.setData("health", 5 + Math.floor(score / 20));
-    enemy.setData("speed", 80 + score * 2);
+    enemy.setData("health", health);
+    enemy.setData("speed", speed);
   } else {
     enemy.setDisplaySize(24, 24).setTint(0xff0000);
-    enemy.setCircle(12);
-    enemy.setData("health", 1);
-    enemy.setData("speed", 100 + score * 3);
+    enemy.setData("health", health);
+    enemy.setData("speed", speed);
   }
+  
+  enemy.setFixedRotation();
+  enemies.push(enemy);
 }
 
 function bulletHitEnemy(bullet, enemy) {
-  bullet.setActive(false);
-  bullet.setVisible(false);
+  if (!bullet || !bullet.active || !enemy || !enemy.active) return;
+  
+  // Remove bullet
+  bullet.destroy();
+  const bulletIndex = bullets.indexOf(bullet);
+  if (bulletIndex !== -1) bullets.splice(bulletIndex, 1);
 
   const remaining = (enemy.getData("health") || 1) - (bullet.damage || bulletDamage);
 
   if (remaining <= 0) {
+    // Remove enemy
+    const enemyPos = { x: enemy.x, y: enemy.y };
     enemy.destroy();
+    const enemyIndex = enemies.indexOf(enemy);
+    if (enemyIndex !== -1) enemies.splice(enemyIndex, 1);
 
     score += 1;
     scoreText.setText(`Score: ${score}`);
 
     // Spawn an XP gem
-    const gem = gems.create(enemy.x, enemy.y, "pixel");
+    const gem = this.matter.add.image(enemyPos.x, enemyPos.y, "pixel", null, {
+      label: 'gem',
+      circleRadius: 6,
+      frictionAir: 0.1,
+      isSensor: true, // Makes it not physically collide but still trigger collision events
+      collisionFilter: {
+        category: CATEGORY.GEM,
+        mask: CATEGORY.PLAYER
+      }
+    });
     gem.setDisplaySize(12, 12).setTint(0x00ffff);
-    gem.setCircle(6);
     gem.setData("value", 1);
+    gems.push(gem);
   } else {
     enemy.setData("health", remaining);
   }
 }
 
 function enemyHitPlayer(playerSprite, enemy) {
+  if (!enemy || !enemy.active) return;
+  
+  // Remove enemy
   enemy.destroy();
+  const enemyIndex = enemies.indexOf(enemy);
+  if (enemyIndex !== -1) enemies.splice(enemyIndex, 1);
+  
   health -= 1;
   healthText.setText(`Health: ${health}`);
 
@@ -294,8 +400,15 @@ function enemyHitPlayer(playerSprite, enemy) {
 }
 
 function collectGem(playerSprite, gem) {
+  if (!gem || !gem.active) return;
+  
   xp += gem.getData("value") || 1;
+  
+  // Remove gem
   gem.destroy();
+  const gemIndex = gems.indexOf(gem);
+  if (gemIndex !== -1) gems.splice(gemIndex, 1);
+  
   xpText.setText(`XP: ${xp} / ${LEVEL_THRESHOLDS[level - 1] || "∞"}`);
   checkLevelUp.call(this);
 }
