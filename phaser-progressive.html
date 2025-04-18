@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phaser Progressive Test</title>
+  <style>
+    body { margin: 0; padding: 0; background: #1d1d1d; }
+    #game-container { width: 100vw; height: 100vh; }
+    .controls {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      z-index: 100;
+      background: rgba(0,0,0,0.7);
+      padding: 10px;
+      border-radius: 5px;
+      color: white;
+    }
+    button {
+      margin: 5px;
+      padding: 5px 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  
+  <div class="controls">
+    <button onclick="testBasic()">1: Basic Scene</button>
+    <button onclick="testPhysics()">2: Add Physics</button>
+    <button onclick="testTweens()">3: Add Tweens</button>
+    <button onclick="testDynamicUpdates()">4: Add Dynamic Updates</button>
+    <button onclick="testFull()">5: Full Feature Set</button>
+  </div>
+
+  <!-- Load Phaser separately -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  
+  <!-- Test scenarios -->
+  <script>
+    let currentGame = null;
+    
+    // Kill any existing game instance
+    function destroyGame() {
+      if (currentGame) {
+        currentGame.destroy(true);
+        currentGame = null;
+      }
+    }
+    
+    // Test 1: Basic Scene (Already known to work)
+    function testBasic() {
+      destroyGame();
+      currentGame = new Phaser.Game({
+        type: Phaser.CANVAS,
+        parent: 'game-container',
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333',
+        scene: {
+          create: function() {
+            this.add.circle(400, 300, 50, 0xff0000);
+            this.add.text(250, 250, 'Basic Scene Test', { 
+              fontSize: '24px',
+              fill: '#ffffff'
+            });
+            console.log('Basic scene created successfully');
+          }
+        }
+      });
+    }
+    
+    // Test 2: Add Physics
+    function testPhysics() {
+      destroyGame();
+      currentGame = new Phaser.Game({
+        type: Phaser.CANVAS,
+        parent: 'game-container',
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333',
+        physics: {
+          default: 'arcade',
+          arcade: { gravity: { y: 200 }, debug: false }
+        },
+        scene: {
+          create: function() {
+            // Add static platform
+            const platform = this.physics.add.staticGroup();
+            platform.create(400, 500, 'pixel').setScale(800, 20).refreshBody();
+            
+            // Add bouncing ball
+            const ball = this.physics.add.image(400, 100, 'pixel')
+              .setDisplaySize(40, 40)
+              .setTint(0xff0000);
+            
+            ball.setVelocity(100, -200);
+            ball.setBounce(1);
+            ball.setCollideWorldBounds(true);
+            
+            this.physics.add.collider(ball, platform);
+            
+            this.add.text(250, 50, 'Physics Test', { 
+              fontSize: '24px',
+              fill: '#ffffff'
+            });
+            
+            console.log('Physics scene created successfully');
+          },
+          preload: function() {
+            // Create a 1x1 white pixel texture for all objects
+            this.load.image('pixel', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGP6zwAAAgcBApocMXEAAAAASUVORK5CYII=');
+          }
+        }
+      });
+    }
+    
+    // Test 3: Add Tweens
+    function testTweens() {
+      destroyGame();
+      currentGame = new Phaser.Game({
+        type: Phaser.CANVAS,
+        parent: 'game-container',
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333',
+        scene: {
+          create: function() {
+            const circle = this.add.circle(100, 300, 50, 0xff0000);
+            
+            // Create a tween
+            this.tweens.add({
+              targets: circle,
+              x: 700,
+              duration: 2000,
+              ease: 'Sine.easeInOut',
+              yoyo: true,
+              repeat: -1
+            });
+            
+            this.add.text(250, 50, 'Tweens Test', { 
+              fontSize: '24px',
+              fill: '#ffffff'
+            });
+            
+            console.log('Tweens scene created successfully');
+          }
+        }
+      });
+    }
+    
+    // Test 4: Dynamic Updates with Callbacks
+    function testDynamicUpdates() {
+      destroyGame();
+      currentGame = new Phaser.Game({
+        type: Phaser.CANVAS,
+        parent: 'game-container',
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333',
+        scene: {
+          create: function() {
+            this.circle = this.add.circle(400, 300, 50, 0xff0000);
+            this.direction = 1;
+            this.speed = 3;
+            
+            // Create timer events with callbacks
+            this.time.addEvent({
+              delay: 2000,
+              callback: () => {
+                this.direction *= -1;
+                this.circle.fillColor = Phaser.Math.Between(0, 0xffffff);
+              },
+              callbackScope: this,
+              loop: true
+            });
+            
+            this.add.text(250, 50, 'Dynamic Updates Test', { 
+              fontSize: '24px',
+              fill: '#ffffff'
+            });
+            
+            console.log('Dynamic updates scene created successfully');
+          },
+          update: function() {
+            // Use update loop with custom logic
+            this.circle.x += this.speed * this.direction;
+            
+            if (this.circle.x > 750 || this.circle.x < 50) {
+              this.direction *= -1;
+            }
+          }
+        }
+      });
+    }
+    
+    // Test 5: Full Feature Set - closest to your game
+    function testFull() {
+      destroyGame();
+      currentGame = new Phaser.Game({
+        type: Phaser.CANVAS,
+        parent: 'game-container',
+        width: 800,
+        height: 600,
+        backgroundColor: '#333333',
+        physics: {
+          default: 'arcade',
+          arcade: { gravity: { y: 0 }, debug: false }
+        },
+        scene: {
+          preload: function() {
+            this.load.image('pixel', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGP6zwAAAgcBApocMXEAAAAASUVORK5CYII=');
+          },
+          create: function() {
+            // Player
+            this.player = this.physics.add.image(400, 300, 'pixel')
+              .setDisplaySize(32, 32)
+              .setTint(0x00ff00);
+            this.player.setCollideWorldBounds(true);
+            
+            // Enemies group
+            this.enemies = this.physics.add.group();
+            
+            // Bullet group
+            this.bullets = this.physics.add.group({
+              defaultKey: 'pixel',
+              maxSize: 20
+            });
+            
+            // Spawn enemies on timer
+            this.time.addEvent({
+              delay: 1000,
+              callback: this.spawnEnemy,
+              callbackScope: this,
+              loop: true
+            });
+            
+            // Shoot on timer
+            this.time.addEvent({
+              delay: 500,
+              callback: this.shootBullet,
+              callbackScope: this,
+              loop: true
+            });
+            
+            // Collisions
+            this.physics.add.overlap(this.bullets, this.enemies, this.hitEnemy, null, this);
+            
+            // Input
+            this.cursors = this.input.keyboard.createCursorKeys();
+            
+            this.add.text(250, 50, 'Full Feature Test', { 
+              fontSize: '24px',
+              fill: '#ffffff'
+            });
+            
+            console.log('Full feature scene created successfully');
+          },
+          update: function() {
+            // Movement
+            const speed = 200;
+            let vx = 0;
+            let vy = 0;
+            
+            if (this.cursors.left.isDown) vx = -speed;
+            else if (this.cursors.right.isDown) vx = speed;
+            if (this.cursors.up.isDown) vy = -speed;
+            else if (this.cursors.down.isDown) vy = speed;
+            
+            this.player.setVelocity(vx, vy);
+            
+            // Update bullets
+            this.bullets.getChildren().forEach(b => {
+              if (b.active && b.lifespan) {
+                b.lifespan -= 16; // Roughly based on 60fps
+                if (b.lifespan <= 0) {
+                  b.setActive(false);
+                  b.setVisible(false);
+                }
+              }
+            });
+            
+            // Move enemies toward player
+            this.enemies.getChildren().forEach(enemy => {
+              this.physics.moveToObject(enemy, this.player, 100);
+            });
+          },
+          spawnEnemy: function() {
+            // Random edge position
+            const edge = Phaser.Math.Between(0, 3);
+            let x, y;
+            
+            switch (edge) {
+              case 0: // left
+                x = 0;
+                y = Phaser.Math.Between(0, 600);
+                break;
+              case 1: // right
+                x = 800;
+                y = Phaser.Math.Between(0, 600);
+                break;
+              case 2: // top
+                x = Phaser.Math.Between(0, 800);
+                y = 0;
+                break;
+              case 3: // bottom
+                x = Phaser.Math.Between(0, 800);
+                y = 600;
+                break;
+            }
+            
+            const enemy = this.enemies.create(x, y, 'pixel')
+              .setDisplaySize(24, 24)
+              .setTint(0xff0000);
+          },
+          shootBullet: function() {
+            // Find nearest enemy
+            let closest = null;
+            let minDist = Infinity;
+            
+            this.enemies.getChildren().forEach(enemy => {
+              const dist = Phaser.Math.Distance.Between(
+                this.player.x, this.player.y, enemy.x, enemy.y
+              );
+              if (dist < minDist) {
+                minDist = dist;
+                closest = enemy;
+              }
+            });
+            
+            if (!closest) return;
+            
+            // Shoot at nearest enemy
+            const bullet = this.bullets.get(this.player.x, this.player.y);
+            if (!bullet) return;
+            
+            bullet.setActive(true);
+            bullet.setVisible(true);
+            bullet.setDisplaySize(8, 8).setTint(0xffff00);
+            bullet.body.reset(this.player.x, this.player.y);
+            
+            this.physics.moveToObject(bullet, closest, 300);
+            bullet.lifespan = 1000;
+          },
+          hitEnemy: function(bullet, enemy) {
+            bullet.setActive(false);
+            bullet.setVisible(false);
+            enemy.destroy();
+          }
+        }
+      });
+    }
+    
+    // Start with the basic test by default
+    window.onload = testBasic;
+  </script>
+</body>
+</html> 
