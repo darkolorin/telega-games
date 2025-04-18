@@ -86,66 +86,11 @@ const app = new PIXI.Application({
   autoDensity: true
 });
 
-// GSAP for animations
+// Check if GSAP is loaded
 if (!window.gsap) {
-  window.gsap = {
-    to: (obj, params) => {
-      const startProps = {};
-      const duration = params.duration || 1;
-      const easing = params.ease || 'linear';
-      const target = {};
-      
-      // Extract animation properties
-      for (const key in params) {
-        if (key !== 'duration' && key !== 'ease' && key !== 'onComplete') {
-          startProps[key] = obj[key];
-          target[key] = params[key];
-        }
-      }
-      
-      // Simple animation ticker
-      let elapsed = 0;
-      const tick = (delta) => {
-        elapsed += delta / 60;
-        const progress = Math.min(1, elapsed / duration);
-        
-        // Simple easing functions
-        let easedProgress;
-        if (easing === 'power2.out') {
-          easedProgress = 1 - Math.pow(1 - progress, 2);
-        } else if (easing === 'power2.in') {
-          easedProgress = Math.pow(progress, 2);
-        } else if (easing === 'power2.inOut') {
-          easedProgress = progress < 0.5 ? 2 * Math.pow(progress, 2) : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-        } else {
-          easedProgress = progress; // linear
-        }
-        
-        // Update properties
-        for (const key in target) {
-          obj[key] = startProps[key] + (target[key] - startProps[key]) * easedProgress;
-        }
-        
-        if (progress >= 1) {
-          app.ticker.remove(tick);
-          if (params.onComplete) params.onComplete();
-        }
-      };
-      
-      app.ticker.add(tick);
-    },
-    delayedCall: (delay, callback) => {
-      let elapsed = 0;
-      const tick = (delta) => {
-        elapsed += delta / 60;
-        if (elapsed >= delay) {
-          app.ticker.remove(tick);
-          callback();
-        }
-      };
-      app.ticker.add(tick);
-    }
-  };
+  console.error("GSAP library not loaded! Animations might not work.");
+  // Provide a very basic fallback if needed
+  window.gsap = { to: () => {}, delayedCall: (d, c) => setTimeout(c, d * 1000) };
 }
 
 // Shorthand for gsap
@@ -1019,7 +964,9 @@ function animateXPGemCollection(gem) {
 
 // Check if player level up
 function checkLevelUp() {
-  if (level <= LEVEL_THRESHOLDS.length && xp >= LEVEL_THRESHOLDS[level - 1]) {
+  // Check only if ability selection isn't already active
+  if (!abilitySelectionActive && level <= LEVEL_THRESHOLDS.length && xp >= LEVEL_THRESHOLDS[level - 1]) {
+    console.log(`Level Up! Level ${level} -> ${level + 1}. XP: ${xp}, Threshold: ${LEVEL_THRESHOLDS[level - 1]}`);
     level++;
     
     // Basic stat improvement is now handled by abilities
@@ -1044,6 +991,11 @@ function checkLevelUp() {
     
     app.stage.addChild(levelText);
     
+    // Pause the game immediately before starting animation
+    app.ticker.remove(gameLoop);
+    abilitySelectionActive = true; // Mark as active now
+    console.log("Game loop paused for level up.");
+    
     // Fade out level text
     gsap.to(levelText, {
       alpha: 0,
@@ -1051,6 +1003,7 @@ function checkLevelUp() {
       duration: 1.5,
       ease: 'power2.out',
       onComplete: () => {
+        console.log("Level text faded, creating ability selection...");
         app.stage.removeChild(levelText);
         
         // Show ability selection after text fades
@@ -1061,8 +1014,10 @@ function checkLevelUp() {
     // Update XP bar
     updateXPBar();
   } else {
-    // Just update XP bar if no level up
-    updateXPBar();
+    // Only update XP bar if not leveling up
+    if (!abilitySelectionActive) {
+      updateXPBar();
+    }
   }
 }
 
@@ -1336,4 +1291,128 @@ function createRadialGradientTexture() {
   ctx.fillRect(0, 0, quality, quality);
   
   return PIXI.Texture.from(canvas);
+}
+
+// Create the ability selection screen
+function createAbilitySelection() {
+  // Ticker is already removed by checkLevelUp
+  console.log("Creating ability selection UI...");
+  
+  // Create container
+  abilityContainer = new PIXI.Container();
+  abilityContainer.alpha = 0;
+  app.stage.addChild(abilityContainer);
+  
+  // Dim background
+  const dimBackground = new PIXI.Graphics();
+  dimBackground.beginFill(0x000000, 0.5);
+  dimBackground.drawRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+  dimBackground.endFill();
+  abilityContainer.addChild(dimBackground);
+  
+  // Create ability options
+  abilityOptions = [
+    { id: 'multishot', name: 'Multishot', color: 0xff00ff },
+    { id: 'homing', name: 'Homing', color: 0x00ff00 },
+    { id: 'shield', name: 'Shield', color: 0x00ffff },
+    { id: 'vampiric', name: 'Vampiric', color: 0xff0000 },
+    { id: 'explosive', name: 'Explosive', color: 0xffff00 },
+    { id: 'timeWarp', name: 'Time Warp', color: 0x0000ff },
+    { id: 'gemMagnet', name: 'Gem Magnet', color: 0xff00ff },
+    { id: 'piercing', name: 'Piercing', color: 0xff0000 },
+    { id: 'vampiric', name: 'Vampiric', color: 0xff0000 },
+    { id: 'vampiric', name: 'Vampiric', color: 0xff0000 }
+  ];
+  
+  // Create ability buttons
+  const buttonWidth = 100;
+  const buttonHeight = 100;
+  const spacing = 20;
+  const startX = (BASE_WIDTH - (buttonWidth + spacing) * abilityOptions.length) / 2;
+  const startY = BASE_HEIGHT - buttonHeight - 20;
+  
+  abilityOptions.forEach((ability, index) => {
+    const button = new PIXI.Graphics();
+    button.beginFill(ability.color);
+    button.drawRect(startX + index * (buttonWidth + spacing), startY, buttonWidth, buttonHeight);
+    button.endFill();
+    
+    const buttonText = createStyledText(ability.name, startX + index * (buttonWidth + spacing) + buttonWidth / 2, startY + buttonHeight / 2, {
+      fontSize: 16,
+      color: 0x000000,
+      bold: true,
+      anchor: { x: 0.5, y: 0.5 }
+    });
+    button.addChild(buttonText);
+    
+    button.interactive = true;
+    button.buttonMode = true;
+    button.on('pointerdown', () => {
+      selectAbility(ability);
+    });
+    
+    abilityContainer.addChild(button);
+    abilityContainer.addChild(buttonText);
+  });
+  
+  // Animate ability selection UI
+  gsap.to(abilityContainer, {
+    alpha: 1,
+    duration: 0.5,
+    ease: 'power2.out'
+  });
+}
+
+// Select an ability and apply it
+function selectAbility(ability) {
+  console.log("Ability selected:", ability.name);
+  // Apply ability effect
+  ability.effect(player);
+  
+  // Add to player abilities
+  playerAbilities.push(ability);
+  
+  // Show ability gained notification
+  const notification = createStyledText(`Ability Gained: ${ability.name}`, BASE_WIDTH / 2, BASE_HEIGHT - 80, {
+    fontSize: 24,
+    color: ability.color || COLORS.LEVEL_UP,
+    bold: true,
+    anchor: { x: 0.5, y: 0.5 },
+    strokeThickness: 3
+  });
+  app.stage.addChild(notification);
+  
+  // Animate notification
+  gsap.to(notification, {
+    y: BASE_HEIGHT - 100,
+    alpha: 0,
+    duration: 2,
+    ease: 'power2.out',
+    onComplete: () => {
+      app.stage.removeChild(notification);
+    }
+  });
+  
+  // Create special effect
+  createParticles(player.x, player.y, {
+    count: 30,
+    color: ability.color || COLORS.LEVEL_UP,
+    speed: 3,
+    size: 3,
+    lifetime: 60
+  });
+  
+  // Remove ability selection UI
+  gsap.to(abilityContainer, {
+    alpha: 0,
+    duration: 0.3,
+    ease: 'power2.in',
+    onComplete: () => {
+      console.log("Ability UI faded, resuming game loop...");
+      app.stage.removeChild(abilityContainer);
+      abilitySelectionActive = false;
+      // Restart the game loop
+      app.ticker.add(gameLoop);
+    }
+  });
 } 
