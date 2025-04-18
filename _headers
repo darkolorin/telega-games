@@ -4,3 +4,13 @@
       X-Frame-Options: DENY
       X-XSS-Protection: 1; mode=block
       Content-Security-Policy: script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net/npm/ https://telegram.org/; object-src 'none'; base-uri 'self';
+    */
+
+    // // Alternative with delay (try if direct call fails):
+    // if (window.Telegram && Telegram.WebApp) {
+    //   if (Telegram.WebApp.ready) Telegram.WebApp.ready();
+    //   setTimeout(() => {
+    //     if (Telegram.WebApp.expand) Telegram.WebApp.expand();
+    //     console.log("Attempted to expand Telegram WebApp (delayed).");
+    //   }, 100); // 100ms delay
+    // }
