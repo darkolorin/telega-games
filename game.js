@@ -1305,57 +1305,168 @@ function createAbilitySelection() {
   
   // Dim background
   const dimBackground = new PIXI.Graphics();
-  dimBackground.beginFill(0x000000, 0.5);
+  dimBackground.beginFill(0x000000, 0.7);
   dimBackground.drawRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
   dimBackground.endFill();
   abilityContainer.addChild(dimBackground);
   
-  // Create ability options
-  abilityOptions = [
-    { id: 'multishot', name: 'Multishot', color: 0xff00ff },
-    { id: 'homing', name: 'Homing', color: 0x00ff00 },
-    { id: 'shield', name: 'Shield', color: 0x00ffff },
-    { id: 'vampiric', name: 'Vampiric', color: 0xff0000 },
-    { id: 'explosive', name: 'Explosive', color: 0xffff00 },
-    { id: 'timeWarp', name: 'Time Warp', color: 0x0000ff },
-    { id: 'gemMagnet', name: 'Gem Magnet', color: 0xff00ff },
-    { id: 'piercing', name: 'Piercing', color: 0xff0000 },
-    { id: 'vampiric', name: 'Vampiric', color: 0xff0000 },
-    { id: 'vampiric', name: 'Vampiric', color: 0xff0000 }
-  ];
-  
-  // Create ability buttons
-  const buttonWidth = 100;
-  const buttonHeight = 100;
-  const spacing = 20;
-  const startX = (BASE_WIDTH - (buttonWidth + spacing) * abilityOptions.length) / 2;
-  const startY = BASE_HEIGHT - buttonHeight - 20;
-  
+  // Title
+  const title = createStyledText("Choose an Ability", BASE_WIDTH / 2, 80, {
+    fontSize: 36,
+    color: COLORS.LEVEL_UP,
+    bold: true,
+    anchor: { x: 0.5, y: 0.5 },
+    strokeThickness: 4
+  });
+  abilityContainer.addChild(title);
+
+  // Get random abilities
+  abilityOptions = getRandomAbilities(2);
+  console.log("Ability options:", abilityOptions.map(a => a.name));
+
+  // Create cards
+  const cardWidth = 180;
+  const cardHeight = 220;
+  const cardSpacing = 20;
+  const startX = (BASE_WIDTH - (cardWidth * 2 + cardSpacing)) / 2;
+
   abilityOptions.forEach((ability, index) => {
-    const button = new PIXI.Graphics();
-    button.beginFill(ability.color);
-    button.drawRect(startX + index * (buttonWidth + spacing), startY, buttonWidth, buttonHeight);
-    button.endFill();
+    const cardX = startX + (cardWidth + cardSpacing) * index;
+    const cardY = BASE_HEIGHT / 2 - 20;
+
+    // --- Card Enhancement Start ---
+    const card = new PIXI.Container();
+    card.x = cardX;
+    card.y = cardY;
+    card.interactive = true;
+    card.buttonMode = true;
+
+    // Card background graphics
+    const bg = new PIXI.Graphics();
+    card.bg = bg; // Store reference for hover effects
+    card.addChild(bg);
+
+    // Function to draw the card background (used for initial draw and hover states)
+    const drawCardBackground = (state = 'default') => {
+      bg.clear();
+      const borderColor = state === 'hover' ? (ability.color || COLORS.ABILITY_CARD_BORDER) : COLORS.ABILITY_CARD_BORDER;
+      const fillColorTop = state === 'hover' ? 0x555599 : COLORS.ABILITY_CARD;
+      const fillColorBottom = state === 'hover' ? 0x444488 : 0x222255;
+      const borderThickness = state === 'hover' ? 4 : 3;
+      
+      // Gradient Fill
+      const gradientFill = new PIXI.FillGradient(0, 0, 0, cardHeight);
+      gradientFill.addColorStop(0, fillColorTop);
+      gradientFill.addColorStop(1, fillColorBottom);
+      bg.beginTextureFill({ texture: PIXI.Texture.WHITE, color: 0xFFFFFF, alpha: 1, matrix: gradientFill });
+      
+      // Border and Shape
+      bg.lineStyle(borderThickness, borderColor, 1);
+      bg.drawRoundedRect(0, 0, cardWidth, cardHeight, 15);
+      bg.endFill();
+      
+      // Subtle inner highlight/shadow (optional)
+      bg.lineStyle(1, 0xffffff, 0.1);
+      bg.drawRoundedRect(borderThickness, borderThickness, cardWidth - borderThickness*2, cardHeight - borderThickness*2, 12);
+      bg.lineStyle(1, 0x000000, 0.2);
+      bg.drawRoundedRect(borderThickness + 1, borderThickness + 1, cardWidth - (borderThickness+1)*2, cardHeight - (borderThickness+1)*2, 11);
+      
+    };
+    drawCardBackground(); // Initial draw
     
-    const buttonText = createStyledText(ability.name, startX + index * (buttonWidth + spacing) + buttonWidth / 2, startY + buttonHeight / 2, {
-      fontSize: 16,
-      color: 0x000000,
+    // Icon Frame
+    const iconFrame = new PIXI.Graphics();
+    iconFrame.lineStyle(2, ability.color || 0xffffff, 0.5);
+    iconFrame.beginFill(0x000000, 0.3);
+    iconFrame.drawCircle(cardWidth / 2, 85, 30);
+    iconFrame.endFill();
+    card.addChild(iconFrame);
+    
+    // Ability Icon (placed above frame)
+    const iconText = new PIXI.Text(ability.icon, {
+      fontFamily: 'Arial',
+      fontSize: 40,
+      fill: 0xffffff,
+      dropShadow: true,
+      dropShadowColor: '#000000',
+      dropShadowBlur: 3,
+      dropShadowDistance: 2
+    });
+    iconText.anchor.set(0.5);
+    iconText.x = cardWidth / 2;
+    iconText.y = 85;
+    card.addChild(iconText);
+
+    // Ability Name (adjust position)
+    const nameText = createStyledText(ability.name, cardWidth / 2, 35, { // Raised slightly
+      fontSize: 20,
+      color: 0xffffff,
       bold: true,
       anchor: { x: 0.5, y: 0.5 }
     });
-    button.addChild(buttonText);
+    card.addChild(nameText);
     
-    button.interactive = true;
-    button.buttonMode = true;
-    button.on('pointerdown', () => {
-      selectAbility(ability);
+    // Ability Description (adjust position and style)
+    const descText = createStyledText(ability.description, cardWidth / 2, 155, { // Lowered slightly
+      fontSize: 15, // Slightly smaller
+      color: 0xddddff,
+      align: 'center',
+      anchor: { x: 0.5, y: 0.5 },
+      wordWrap: true,
+      wordWrapWidth: cardWidth - 30, // More padding
+      strokeThickness: 2 // Thinner stroke for readability
     });
-    
-    abilityContainer.addChild(button);
-    abilityContainer.addChild(buttonText);
+    card.addChild(descText);
+
+    // Rarity indicator (keep as is, maybe adjust y slightly)
+    const rarityColors = {
+      common: 0xcccccc,
+      uncommon: 0x66cc66,
+      rare: 0x5599ff,
+      epic: 0xcc66ff
+    };
+    const rarityText = createStyledText(ability.rarity.toUpperCase(), cardWidth / 2, cardHeight - 25, { // Adjusted y
+      fontSize: 14,
+      color: rarityColors[ability.rarity],
+      bold: true,
+      anchor: { x: 0.5, y: 0.5 }
+    });
+    card.addChild(rarityText);
+
+    // Enhanced Hover Effects
+    card.on('pointerover', () => {
+      drawCardBackground('hover');
+      // Scale up slightly with bounce
+      gsap.to(card.scale, { x: 1.05, y: 1.05, duration: 0.2, ease: 'back.out(1.7)' });
+      // Tilt effect (optional, might need pivot adjustment)
+      // gsap.to(card, { rotation: 0.05, duration: 0.2 });
+    });
+
+    card.on('pointerout', () => {
+      drawCardBackground('default');
+      // Reset scale
+      gsap.to(card.scale, { x: 1.0, y: 1.0, duration: 0.2 });
+      // Reset tilt
+      // gsap.to(card, { rotation: 0, duration: 0.2 });
+    });
+
+    // Click handler with visual feedback
+    card.on('pointerdown', () => {
+      console.log(`Card clicked: ${ability.name}`);
+      // Quick scale down animation
+      gsap.to(card.scale, {
+        x: 0.95, y: 0.95, duration: 0.1, yoyo: true, repeat: 1,
+        onComplete: () => {
+          selectAbility(ability);
+        }
+      });
+    });
+    // --- Card Enhancement End ---
+
+    abilityContainer.addChild(card);
   });
-  
-  // Animate ability selection UI
+
+  // Animate in
   gsap.to(abilityContainer, {
     alpha: 1,
     duration: 0.5,
@@ -1365,7 +1476,7 @@ function createAbilitySelection() {
 
 // Select an ability and apply it
 function selectAbility(ability) {
-  console.log("Ability selected:", ability.name);
+  console.log(`selectAbility called for: ${ability.name}`);
   // Apply ability effect
   ability.effect(player);
   
@@ -1402,6 +1513,7 @@ function selectAbility(ability) {
     lifetime: 60
   });
   
+  console.log("Starting ability UI fade out...");
   // Remove ability selection UI
   gsap.to(abilityContainer, {
     alpha: 0,
@@ -1409,10 +1521,21 @@ function selectAbility(ability) {
     ease: 'power2.in',
     onComplete: () => {
       console.log("Ability UI faded, resuming game loop...");
-      app.stage.removeChild(abilityContainer);
+      if (!abilityContainer) {
+        console.error("Ability container reference lost before removal!");
+      } else {
+        app.stage.removeChild(abilityContainer);
+        abilityContainer = null; // Clear reference
+      }
       abilitySelectionActive = false;
       // Restart the game loop
-      app.ticker.add(gameLoop);
+      if (app.ticker.started) {
+          console.warn("Ticker already running when trying to resume!");
+      } else {
+          app.ticker.add(gameLoop);
+          if (!app.ticker.started) app.ticker.start(); // Make sure it starts if stopped
+          console.log("Game loop resumed.");
+      }
     }
   });
 } 
