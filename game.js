@@ -1354,9 +1354,29 @@ function init() {
   
   // Initialize Telegram WebApp
   if (window.Telegram && Telegram.WebApp) {
-    if (Telegram.WebApp.ready) Telegram.WebApp.ready();
-    if (Telegram.WebApp.expand) Telegram.WebApp.expand();
-    console.log("Attempted to expand Telegram WebApp.");
+    try {
+      if (Telegram.WebApp.ready) Telegram.WebApp.ready();
+
+      // Prefer the new fullscreen API if supported (Bot API ≥ 8.0)
+      if (Telegram.WebApp.requestFullscreen) {
+        Telegram.WebApp.requestFullscreen();
+        console.log("Requested Telegram WebApp fullscreen mode.");
+        // Listen for failure and fallback to expand()
+        Telegram.WebApp.onEvent && Telegram.WebApp.onEvent('fullscreenFailed', (e) => {
+          console.warn('Fullscreen request failed:', e?.error);
+          if (Telegram.WebApp.expand) {
+            Telegram.WebApp.expand();
+            console.log('Fallback: expanded WebApp instead.');
+          }
+        });
+      } else if (Telegram.WebApp.expand) {
+        // Older clients: just expand bottom-sheet to max height
+        Telegram.WebApp.expand();
+        console.log("Expanded Telegram WebApp (fullscreen not supported).");
+      }
+    } catch (err) {
+      console.error('Telegram WebApp integration error:', err);
+    }
   }
   
   // Resize to fit screen
