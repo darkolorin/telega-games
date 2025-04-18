@@ -54,6 +54,11 @@
         width: BASE_WIDTH,
         height: BASE_HEIGHT,
       },
+      backgroundColor: '#1d1d1d',
+      physics: {
+        default: 'arcade',
+        arcade: { gravity: { y: 0 }, debug: false }
+      },
       scene: {
         preload: preload,
         create: create,
