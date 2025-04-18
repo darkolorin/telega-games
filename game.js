@@ -272,21 +272,26 @@ document.getElementById('game-container').appendChild(app.view);
 
 // Scale for different screen sizes
 function resize() {
-  const gameContainer = document.getElementById('game-container');
-  const gameRatio = BASE_WIDTH / BASE_HEIGHT;
-  const windowRatio = gameContainer.clientWidth / gameContainer.clientHeight;
-  
-  if (windowRatio > gameRatio) {
-    // Window is wider than game ratio
-    const scale = gameContainer.clientHeight / BASE_HEIGHT;
-    app.renderer.resize(BASE_HEIGHT * windowRatio, BASE_HEIGHT);
-    app.stage.scale.set(scale);
-  } else {
-    // Window is taller than game ratio
-    const scale = gameContainer.clientWidth / BASE_WIDTH;
-    app.renderer.resize(BASE_WIDTH, BASE_WIDTH / windowRatio);
-    app.stage.scale.set(scale);
-  }
+  const gameContainerEl = document.getElementById('game-container');
+  if (!gameContainerEl) return;
+
+  const containerW = gameContainerEl.clientWidth;
+  const containerH = gameContainerEl.clientHeight;
+
+  // Calculate uniform scale to fit the container while preserving aspect
+  const scale = Math.min(containerW / BASE_WIDTH, containerH / BASE_HEIGHT);
+
+  // Resize renderer to the scaled size (physical pixels)
+  const rendererWidth = Math.ceil(BASE_WIDTH * scale);
+  const rendererHeight = Math.ceil(BASE_HEIGHT * scale);
+  app.renderer.resize(rendererWidth, rendererHeight);
+
+  // Apply scale to stage so internal coordinates stay at base values
+  app.stage.scale.set(scale);
+
+  // Match canvas element size via CSS to fill container and avoid blurriness (autoDensity true)
+  app.view.style.width = `${containerW}px`;
+  app.view.style.height = `${containerH}px`;
 }
 
 // Handle window resize
