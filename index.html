@@ -34,12 +34,17 @@
       height: 100vh; /* fallback */
       height: 100dvh;
       display: block;
+      overflow: hidden;
+      z-index: 1;
     }
     /* Force the Pixi canvas to stretch with the container */
     #game-container canvas {
       width: 100% !important;
       height: 100% !important;
       display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
     }
   </style>
 </head>
@@ -54,6 +59,21 @@
     document.addEventListener('DOMContentLoaded', function () {
       if (window.Telegram && Telegram.WebApp) {
         try {
+          // Tell Telegram we're ready ASAP
+          if (Telegram.WebApp.ready) {
+            console.log("Calling Telegram.WebApp.ready()");
+            Telegram.WebApp.ready();
+          }
+          
+          // Request fullscreen immediately on load
+          if (Telegram.WebApp.requestFullscreen) {
+            console.log("Calling Telegram.WebApp.requestFullscreen() on page load");
+            Telegram.WebApp.requestFullscreen();
+          } else if (Telegram.WebApp.expand) {
+            console.log("Calling Telegram.WebApp.expand() on page load");
+            Telegram.WebApp.expand();
+          }
+          
           if (Telegram.WebApp.disableVerticalSwipes) {
             Telegram.WebApp.disableVerticalSwipes();
             console.log('Disabled vertical swipes in Telegram Mini App.');

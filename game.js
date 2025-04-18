@@ -1386,6 +1386,9 @@ function init() {
   
   // Resize to fit screen
   resize();
+
+  // Force an extra resize after a short delay to account for any UI animations
+  setTimeout(resize, 500);
 }
 
 // Start the game when the document is loaded
