@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Telegram Survivors</title>
   <!-- Phaser 3 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
@@ -14,6 +16,7 @@
       padding: 0;
       background: #1d1d1d;
       overflow: hidden;
+      touch-action: none; /* prevent scroll bounce */
     }
     #game-container {
       width: 100vw;
@@ -39,20 +42,17 @@
     }
 
     // ========== GAME CONFIGURATION ==========
-    const GAME_WIDTH = 800;
-    const GAME_HEIGHT = 600;
+    const BASE_WIDTH = 800;
+    const BASE_HEIGHT = 600;
 
     const config = {
       type: Phaser.AUTO,
       parent: "game-container",
-      width: GAME_WIDTH,
-      height: GAME_HEIGHT,
-      backgroundColor: "#1d1d1d",
-      physics: {
-        default: "arcade",
-        arcade: {
-          debug: false,
-        },
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: BASE_WIDTH,
+        height: BASE_HEIGHT,
       },
       scene: {
         preload: preload,
@@ -98,7 +98,7 @@
 
     function create() {
       // Create the player sprite and configure physics.
-      player = this.physics.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "pixel");
+      player = this.physics.add.image(this.scale.width / 2, this.scale.height / 2, "pixel");
       player.setDisplaySize(32, 32).setTint(0x00ff00);
       player.setCollideWorldBounds(true);
 
@@ -184,10 +184,17 @@
         vx = dir.x * speed;
         vy = dir.y * speed;
       } else {
-        if (cursors.left.isDown || this.input.keyboard.keys["A"]?.isDown) vx = -speed;
-        else if (cursors.right.isDown || this.input.keyboard.keys["D"]?.isDown) vx = speed;
-        if (cursors.up.isDown || this.input.keyboard.keys["W"]?.isDown) vy = -speed;
-        else if (cursors.down.isDown || this.input.keyboard.keys["S"]?.isDown) vy = speed;
+        // Older Safari versions (pre‑13.1) don't understand optional chaining (?.)
+        const keys = this.input.keyboard.keys || {};
+        const A = keys["A"] && keys["A"].isDown;
+        const D = keys["D"] && keys["D"].isDown;
+        const W = keys["W"] && keys["W"].isDown;
+        const S = keys["S"] && keys["S"].isDown;
+
+        if (cursors.left.isDown || A) vx = -speed;
+        else if (cursors.right.isDown || D) vx = speed;
+        if (cursors.up.isDown || W) vy = -speed;
+        else if (cursors.down.isDown || S) vy = speed;
       }
 
       player.setVelocity(vx, vy);
@@ -240,19 +247,19 @@
       switch (edge) {
         case 0: // left
           x = 0;
-          y = Phaser.Math.Between(0, GAME_HEIGHT);
+          y = Phaser.Math.Between(0, this.scale.height);
           break;
         case 1: // right
-          x = GAME_WIDTH;
-          y = Phaser.Math.Between(0, GAME_HEIGHT);
+          x = this.scale.width;
+          y = Phaser.Math.Between(0, this.scale.height);
           break;
         case 2: // top
-          x = Phaser.Math.Between(0, GAME_WIDTH);
+          x = Phaser.Math.Between(0, this.scale.width);
           y = 0;
           break;
         case 3: // bottom
-          x = Phaser.Math.Between(0, GAME_WIDTH);
-          y = GAME_HEIGHT;
+          x = Phaser.Math.Between(0, this.scale.width);
+          y = this.scale.height;
           break;
       }
 
@@ -326,7 +333,7 @@
         if (level % 3 === 0) bulletDamage += 1;
 
         const popup = this.add
-          .text(GAME_WIDTH / 2, GAME_HEIGHT / 2, `Level ${level}!`, {
+          .text(this.scale.width / 2, this.scale.height / 2, `Level ${level}!`, {
             font: "32px Arial",
             fill: "#ffff00",
           })
@@ -348,6 +355,17 @@
       if (TelegramGameProxy && TelegramGameProxy.shareScore) {
         TelegramGameProxy.shareScore(score, () => {});
       }
+    }
+
+    // Resize the game if the iPhone rotates or the window size changes.
+    window.addEventListener("resize", () => {
+      game.scale.refresh();
+    });
+
+    // Telegram WebApp (mini‑app) initialization
+    if (window.Telegram && Telegram.WebApp) {
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
     }
   </script>
 </body>
