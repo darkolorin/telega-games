@@ -368,9 +368,12 @@
     });
 
     // Telegram WebApp (mini‑app) initialization
-    if (window.Telegram && Telegram.WebApp) {
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.ready && Telegram.WebApp.expand) {
       Telegram.WebApp.ready();
       Telegram.WebApp.expand();
+      console.log("Telegram WebApp initialized.");
+    } else {
+      console.log("Telegram WebApp API not found or not ready.");
     }
   </script>
 </body>
