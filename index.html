@@ -21,12 +21,24 @@
       overflow: hidden !important;
       overscroll-behavior: none;
       touch-action: none;
-      height: 100vh; /* Fallback */
+      /* Ensure we always cover the entire viewport */
+      width: 100%;
+      height: 100%;
       height: 100dvh; /* Modern viewport units */
     }
+    /* Make sure the container itself always fills the screen */
     #game-container {
+      position: fixed;
+      inset: 0; /* top:0; right:0; bottom:0; left:0 */
       width: 100vw;
+      height: 100vh; /* fallback */
       height: 100dvh;
+      display: block;
+    }
+    /* Force the Pixi canvas to stretch with the container */
+    #game-container canvas {
+      width: 100% !important;
+      height: 100% !important;
       display: block;
     }
   </style>
