@@ -103,7 +103,7 @@
 
     function create() {
       // Create the player sprite and configure physics.
-      player = this.physics.add.image(this.scale.width / 2, this.scale.height / 2, "pixel");
+      player = this.physics.add.image(BASE_WIDTH / 2, BASE_HEIGHT / 2, "pixel");
       player.setDisplaySize(32, 32).setTint(0x00ff00);
       player.setCollideWorldBounds(true);
 
@@ -252,19 +252,19 @@
       switch (edge) {
         case 0: // left
           x = 0;
-          y = Phaser.Math.Between(0, this.scale.height);
+          y = Phaser.Math.Between(0, BASE_HEIGHT);
           break;
         case 1: // right
-          x = this.scale.width;
-          y = Phaser.Math.Between(0, this.scale.height);
+          x = BASE_WIDTH;
+          y = Phaser.Math.Between(0, BASE_HEIGHT);
           break;
         case 2: // top
-          x = Phaser.Math.Between(0, this.scale.width);
+          x = Phaser.Math.Between(0, BASE_WIDTH);
           y = 0;
           break;
         case 3: // bottom
-          x = Phaser.Math.Between(0, this.scale.width);
-          y = this.scale.height;
+          x = Phaser.Math.Between(0, BASE_WIDTH);
+          y = BASE_HEIGHT;
           break;
       }
 
@@ -338,7 +338,7 @@
         if (level % 3 === 0) bulletDamage += 1;
 
         const popup = this.add
-          .text(this.scale.width / 2, this.scale.height / 2, `Level ${level}!`, {
+          .text(BASE_WIDTH / 2, BASE_HEIGHT / 2, `Level ${level}!`, {
             font: "32px Arial",
             fill: "#ffff00",
           })
