@@ -1,15 +1,15 @@
 // ========== TELEGRAM INTEGRATION ==========
 // In the Telegram game environment, TelegramGameProxy is injected automatically.
 // When running locally, we stub it so the game is still playable and debuggable.
-if (typeof window.TelegramGameProxy === "undefined") {
-  window.TelegramGameProxy = {
-    init: () => {},
-    gameOver: (score) => {
-      alert(`Game over! Your score: ${score}`);
-    },
-  };
-  console.log("TelegramGameProxy stubbed (running outside Telegram).");
-}
+// if (typeof window.TelegramGameProxy === "undefined") {
+//   window.TelegramGameProxy = {
+//     init: () => {},
+//     gameOver: (score) => {
+//       alert(`Game over! Your score: ${score}`);
+//     },
+//   };
+//   console.log("TelegramGameProxy stubbed (running outside Telegram).");
+// }
 
 // ========== GAME CONFIGURATION ==========
 const BASE_WIDTH = 800;
@@ -326,10 +326,11 @@ function checkLevelUp() {
 
 function endGame() {
   game.scene.pause();
-  TelegramGameProxy.gameOver(score);
-  if (TelegramGameProxy && TelegramGameProxy.shareScore) {
-    TelegramGameProxy.shareScore(score, () => {});
-  }
+  // TelegramGameProxy.gameOver(score); // Commented out
+  // if (TelegramGameProxy && TelegramGameProxy.shareScore) { // Commented out
+  //   TelegramGameProxy.shareScore(score, () => {}); // Commented out
+  // }
+  alert(`Game over! Your score: ${score}`); // Simple alert fallback
 }
 
 // Resize the game if the iPhone rotates or the window size changes.
@@ -338,10 +339,10 @@ window.addEventListener("resize", () => {
 });
 
 // Telegram WebApp (mini‑app) initialization
-if (window.Telegram && Telegram.WebApp && Telegram.WebApp.ready && Telegram.WebApp.expand) {
-  Telegram.WebApp.ready();
-  Telegram.WebApp.expand();
-  console.log("Telegram WebApp initialized.");
-} else {
-  console.log("Telegram WebApp API not found or not ready.");
-} 
+// if (window.Telegram && Telegram.WebApp && Telegram.WebApp.ready && Telegram.WebApp.expand) {
+//   Telegram.WebApp.ready();
+//   Telegram.WebApp.expand();
+//   console.log("Telegram WebApp initialized.");
+// } else {
+//   console.log("Telegram WebApp API not found or not ready.");
+// } 
