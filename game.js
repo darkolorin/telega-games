@@ -278,41 +278,30 @@ function resize() {
   const containerW = gameContainerEl.clientWidth;
   const containerH = gameContainerEl.clientHeight;
   
-  console.log(`Resize called. Container: ${containerW}x${containerH}`);
+  console.log(`Resize called. Container dimensions: ${containerW}x${containerH}`);
 
-  // Calculate uniform scale to fit the container while preserving aspect
+  // Simple approach that works more reliably:
+  // 1. Make canvas fill the entire container
+  app.view.style.width = '100%';
+  app.view.style.height = '100%';
+  app.view.style.position = 'absolute';
+  app.view.style.left = '0';
+  app.view.style.top = '0';
+  
+  // 2. Update renderer to match the container size
+  app.renderer.resize(containerW, containerH);
+  
+  // 3. Calculate the scale based on aspect ratio
   const scale = Math.min(containerW / BASE_WIDTH, containerH / BASE_HEIGHT);
-
-  // Resize renderer to the scaled size (physical pixels)
-  const rendererWidth = Math.ceil(BASE_WIDTH * scale);
-  const rendererHeight = Math.ceil(BASE_HEIGHT * scale);
   
-  // Position game in center of viewport
-  const xPos = Math.round((containerW - rendererWidth) / 2);
-  const yPos = Math.round((containerH - rendererHeight) / 2);
-  
-  // Apply letterbox effect by creating a game-sized viewport with proper aspect ratio
-  // This is the key change to prevent stretching - we use the proper aspect ratio size
-  app.renderer.resize(rendererWidth, rendererHeight);
-  
-  // Center the canvas position (creates letterboxing effect when needed)
-  app.view.style.width = `${rendererWidth}px`;
-  app.view.style.height = `${rendererHeight}px`;
-  app.view.style.position = 'absolute'; 
-  app.view.style.left = `${xPos}px`;
-  app.view.style.top = `${yPos}px`;
-  
-  // Update the safe area for touch input (adjust to the letterbox bounds)
-  // For pixel-perfect touch/mouse handling
-  app.renderer.events.rootBoundary.x = xPos;
-  app.renderer.events.rootBoundary.y = yPos;
-  app.renderer.events.rootBoundary.width = rendererWidth;
-  app.renderer.events.rootBoundary.height = rendererHeight;
-
-  // Apply scale to stage so internal coordinates stay at base values
+  // 4. Scale the stage (this keeps correct proportions)
   app.stage.scale.set(scale);
+  
+  // 5. Center the game stage within the canvas
+  app.stage.position.x = (containerW - (BASE_WIDTH * scale)) / 2;
+  app.stage.position.y = (containerH - (BASE_HEIGHT * scale)) / 2;
 
-  console.log(`Canvas positioned at ${xPos},${yPos} with size ${rendererWidth}x${rendererHeight}`);
+  console.log(`Game stage centered at ${app.stage.position.x},${app.stage.position.y} with scale ${scale}`);
 }
 
 // Handle window resize
