@@ -277,6 +277,8 @@ function resize() {
 
   const containerW = gameContainerEl.clientWidth;
   const containerH = gameContainerEl.clientHeight;
+  
+  console.log(`Resize called. Container: ${containerW}x${containerH}`);
 
   // Calculate uniform scale to fit the container while preserving aspect
   const scale = Math.min(containerW / BASE_WIDTH, containerH / BASE_HEIGHT);
@@ -284,14 +286,33 @@ function resize() {
   // Resize renderer to the scaled size (physical pixels)
   const rendererWidth = Math.ceil(BASE_WIDTH * scale);
   const rendererHeight = Math.ceil(BASE_HEIGHT * scale);
+  
+  // Position game in center of viewport
+  const xPos = Math.round((containerW - rendererWidth) / 2);
+  const yPos = Math.round((containerH - rendererHeight) / 2);
+  
+  // Apply letterbox effect by creating a game-sized viewport with proper aspect ratio
+  // This is the key change to prevent stretching - we use the proper aspect ratio size
   app.renderer.resize(rendererWidth, rendererHeight);
+  
+  // Center the canvas position (creates letterboxing effect when needed)
+  app.view.style.width = `${rendererWidth}px`;
+  app.view.style.height = `${rendererHeight}px`;
+  app.view.style.position = 'absolute'; 
+  app.view.style.left = `${xPos}px`;
+  app.view.style.top = `${yPos}px`;
+  
+  // Update the safe area for touch input (adjust to the letterbox bounds)
+  // For pixel-perfect touch/mouse handling
+  app.renderer.events.rootBoundary.x = xPos;
+  app.renderer.events.rootBoundary.y = yPos;
+  app.renderer.events.rootBoundary.width = rendererWidth;
+  app.renderer.events.rootBoundary.height = rendererHeight;
 
   // Apply scale to stage so internal coordinates stay at base values
   app.stage.scale.set(scale);
 
-  // Match canvas element size via CSS to fill container and avoid blurriness (autoDensity true)
-  app.view.style.width = `${containerW}px`;
-  app.view.style.height = `${containerH}px`;
+  console.log(`Canvas positioned at ${xPos},${yPos} with size ${rendererWidth}x${rendererHeight}`);
 }
 
 // Handle window resize
