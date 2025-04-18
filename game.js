@@ -291,8 +291,8 @@ function resize() {
   // 2. Update renderer to match the container size
   app.renderer.resize(containerW, containerH);
   
-  // 3. Calculate the scale based on aspect ratio
-  const scale = Math.min(containerW / BASE_WIDTH, containerH / BASE_HEIGHT);
+  // 3. Calculate the scale to COVER the entire container (might crop a bit)
+  const scale = Math.max(containerW / BASE_WIDTH, containerH / BASE_HEIGHT);
   
   // 4. Scale the stage (this keeps correct proportions)
   app.stage.scale.set(scale);
