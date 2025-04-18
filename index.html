@@ -17,12 +17,16 @@
       margin: 0;
       padding: 0;
       background: #1d1d1d;
-      overflow: hidden;
+      /* Prevent native scrolling/overscroll */
+      overflow: hidden !important;
+      overscroll-behavior: none;
       touch-action: none;
+      height: 100vh; /* Fallback */
+      height: 100dvh; /* Modern viewport units */
     }
     #game-container {
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       display: block;
     }
   </style>
@@ -32,5 +36,19 @@
 
   <!-- Link external JS -->
   <script src="game.js"></script>
+
+  <!-- Telegram Mini App helpers -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.Telegram && Telegram.WebApp) {
+        try {
+          if (Telegram.WebApp.disableVerticalSwipes) {
+            Telegram.WebApp.disableVerticalSwipes();
+            console.log('Disabled vertical swipes in Telegram Mini App.');
+          }
+        } catch (e) { console.warn('disableVerticalSwipes failed', e); }
+      }
+    });
+  </script>
 </body>
 </html> 

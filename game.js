@@ -63,6 +63,177 @@ const COLORS = {
   ABILITY_CARD_BORDER: 0x8888cc
 };
 
+// ========== PLAYER ABILITIES DEFINITIONS ==========
+/*
+ Each ability object may optionally expose:
+   - effect(player): mandatory, applied once when picked.
+   - onFire(bullet, index, total): optional, called after creating a multishot bullet.
+   - update(bullet, delta): optional, called every bullet update if ability requires.
+   - onHit(bullet, enemy, helpers): optional, called when bullet hits an enemy.
+*/
+
+const ABILITIES = [
+  {
+    id: 'multishot',
+    name: 'Multishot',
+    description: 'Fire extra bullets each shot.',
+    icon: '🔫',
+    color: 0xff66ff,
+    rarity: 'common',
+    effect: (plr) => {
+      plr.multishot = (plr.multishot || 0) + 2; // +2 extra bullets (total = multishot + 1)
+      fireRate = Math.max(100, fireRate - 20);  // little faster fire rate
+    },
+    // Slight spread for extra bullets
+    onFire: (bullet, i, total) => {
+      const spread = 0.2; // radians
+      const angle = Math.atan2(bullet.vy, bullet.vx) + (i - (total - 1) / 2) * spread;
+      const speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+      bullet.vx = Math.cos(angle) * speed;
+      bullet.vy = Math.sin(angle) * speed;
+    }
+  },
+  {
+    id: 'homing',
+    name: 'Homing Rounds',
+    description: 'Bullets slightly steer towards enemies.',
+    icon: '🎯',
+    color: 0x66ff66,
+    rarity: 'uncommon',
+    effect: (plr) => {
+      plr.homing = (plr.homing || 0) + 1; // intensity level
+    },
+    update: (bullet, delta) => {
+      if (enemies.length === 0) return;
+      // Find closest enemy within 300px
+      let closest = null;
+      let minDist = 300;
+      for (const e of enemies) {
+        if (!e.visible) continue;
+        const dx = e.x - bullet.x;
+        const dy = e.y - bullet.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < minDist) {
+          minDist = d;
+          closest = e;
+        }
+      }
+      if (closest) {
+        const turnRate = 0.03 * delta; // small turn per frame
+        const angleTo = Math.atan2(closest.y - bullet.y, closest.x - bullet.x);
+        const current = Math.atan2(bullet.vy, bullet.vx);
+        let diff = angleTo - current;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const newAngle = current + Math.sign(diff) * Math.min(Math.abs(diff), turnRate);
+        const speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+        bullet.vx = Math.cos(newAngle) * speed;
+        bullet.vy = Math.sin(newAngle) * speed;
+      }
+    }
+  },
+  {
+    id: 'shield',
+    name: 'Energy Shield',
+    description: 'Chance to block damage.',
+    icon: '🛡️',
+    color: 0x00ffff,
+    rarity: 'uncommon',
+    effect: (plr) => {
+      plr.shield = (plr.shield || 0) + 1; // increases block chance
+    }
+  },
+  {
+    id: 'vampiric',
+    name: 'Vampiric',
+    description: 'Heal every 10 enemy kills.',
+    icon: '🦇',
+    color: 0xff2266,
+    rarity: 'rare',
+    effect: (plr) => {
+      plr.vampiric = (plr.vampiric || 0) + 1;
+    }
+  },
+  {
+    id: 'explosive',
+    name: 'Explosive Rounds',
+    description: 'Bullets explode on hit dealing AoE damage.',
+    icon: '💥',
+    color: 0xffff44,
+    rarity: 'rare',
+    effect: (plr) => {
+      plr.explosive = true;
+    },
+    onHit: (bullet, enemy, helpers) => {
+      // simple AoE: damage nearby enemies
+      const radius = 60;
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (!e.visible || e === enemy) continue;
+        const dx = e.x - bullet.x;
+        const dy = e.y - bullet.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < radius) {
+          e.health -= Math.max(1, Math.floor(bullet.damage / 2));
+        }
+      }
+      helpers.createParticles(bullet.x, bullet.y, {
+        count: 20,
+        color: 0xffaa00,
+        speed: 4,
+        size: 3,
+        lifetime: 30
+      });
+    }
+  },
+  {
+    id: 'timeWarp',
+    name: 'Time Warp',
+    description: 'Slow nearby enemies.',
+    icon: '⏳',
+    color: 0x6666ff,
+    rarity: 'epic',
+    effect: (plr) => {
+      plr.timeWarp = (plr.timeWarp || 0) + 1;
+    }
+  },
+  {
+    id: 'gemMagnet',
+    name: 'Gem Magnet',
+    description: 'Attract XP gems from further away.',
+    icon: '🧲',
+    color: 0xff66ff,
+    rarity: 'common',
+    effect: (plr) => {
+      plr.gemMagnet = (plr.gemMagnet || 120) + 60; // increase radius
+    }
+  },
+  {
+    id: 'piercing',
+    name: 'Piercing',
+    description: 'Bullets pierce additional enemies.',
+    icon: '📌',
+    color: 0xff4444,
+    rarity: 'uncommon',
+    effect: (plr) => {
+      plr.piercing = (plr.piercing || 0) + 1;
+    }
+  }
+];
+
+// Helper function to pick random abilities that the player does not already own
+function getRandomAbilities(count = 2) {
+  const ownedIds = new Set(playerAbilities.map(a => a.id));
+  const available = ABILITIES.filter(a => !ownedIds.has(a.id));
+  if (available.length === 0) return [];
+  // Shuffle
+  for (let i = available.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
+  return available.slice(0, count);
+}
+
 // ========== TELEGRAM INTEGRATION ==========
 // Stub TelegramGameProxy for testing outside of Telegram
 if (typeof window.TelegramGameProxy === "undefined") {
