@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phaser CSP Test</title>
+</head>
+<body>
+  <div id="game-container" style="width: 800px; height: 600px;"></div>
+
+  <!-- Load Phaser separately -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  
+  <!-- Game code in separate script tag -->
+  <script>
+    // Simplest possible Phaser initialization
+    const game = new Phaser.Game({
+      type: Phaser.CANVAS, // Force Canvas renderer
+      parent: 'game-container',
+      width: 800,
+      height: 600,
+      backgroundColor: '#333333',
+      scene: {
+        create: function() {
+          // Just draw a circle to test that Phaser initialized
+          this.add.circle(400, 300, 50, 0xff0000);
+          
+          // Add text showing we're running
+          this.add.text(250, 250, 'Phaser basic test', { 
+            fontSize: '24px',
+            fill: '#ffffff'
+          });
+          
+          console.log('Phaser created scene successfully!');
+        }
+      }
+    });
+  </script>
+</body>
+</html> 
